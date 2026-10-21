@@ -12,7 +12,7 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
   - Dämpfer: Druck, Sag, Rebound, Open/Firm, Spacer
   - Reifen: Druck vorne und hinten, Schlauch oder tubeless
   - Cockpit
-  - Bosch: alle Fahrmodi mit Unterstützung, Dynamik, Drehmoment, Höchstgeschwindigkeit, Extended Boost und Drivetrain Tensioner, dazu die **Reihenfolge auf dem Kiox**
+  - Bosch (Performance Line CX, ohne Race – der ist der CX-R vorbehalten): je Fahrmodus Unterstützung und Dynamik (Regler −5 … +5), Drehmoment (bis 120 Nm), Leistung, Abschaltgeschwindigkeit, Extended Boost (0 … 10), Traktionskontrolle (aus/niedrig/mittel/hoch), Drivetrain Tensioner (an/aus), bei Eco+ die Aktivierungsschwelle, dazu bis zu **4 Kiox-Favoriten** in Reihenfolge
   - Kontext: Gewicht, Strecke, Bedingungen
 - **Sag-Rechner:** Den gemessenen Sag gibst du in mm ein, die App rechnet ihn in % um.
 - **Warnungen:** Die App warnt, wenn ein Druck über dem Maximum liegt, der Sag weit vom Ziel entfernt ist, mehr als 120 Nm oder mehr als 25 km/h eingetragen sind oder ein Kiox-Platz doppelt vergeben ist.
@@ -38,7 +38,7 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
    - Zugriff: **Jeder**
    - Danach die **Web-App-URL** (endet auf `/exec`) kopieren.
 
-**Wenn du `Code.gs` später änderst:** Unter **Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version** neu bereitstellen. So bleibt die URL gleich.
+**Wenn du `Code.gs` später änderst** (z. B. nach einem Update hier im Repo): Unter **Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version** neu bereitstellen. So bleibt die URL gleich.
 
 ### 2. App
 

@@ -13,7 +13,7 @@
  * Einmalig im Editor die Funktion einrichten() ausführen.
  */
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const STANDARD_MODELL = 'claude-sonnet-5-5';
 const PROPS = PropertiesService.getScriptProperties();
 const KOPF = ['id', 'typ', 'created', 'updated', 'geloescht', 'json', 'lesbar'];
@@ -245,9 +245,9 @@ const SYSTEM_PROMPT = [
   '- Gabel: Fox 36 Float Performance mit GRIP-Dämpfung, 150 mm. Einstellbar: Luftdruck, Rebound (Klicks), Druckstufen-Hebel, Volume Spacer (Token). Ob es zusätzlich eine Druckstufen-Klickverstellung gibt, ist nicht bestätigt – nur nutzen, wenn im Setup ein Wert dafür steht.',
   '- Dämpfer: Fox Float X Performance, max. 350 psi. Einstellbar: Luftdruck, Rebound (Klicks), 2-Stufen-Hebel Open/Firm, Volume Spacer.',
   '- Reifen: Continental Kryptotal 2.4 auf Newmen Beskar 30 (30 mm Innenweite), derzeit mit Schlauch (Sclaverand), sofern das Setup nichts anderes sagt.',
-  '- Antrieb: Bosch Performance Line CX (BDU38) mit Performance Upgrade 2.0, Kiox 400C, PowerTube 800 Wh.',
-  '  Upgrade 2.0: Drehmoment bis 120 Nm (Grundeinstellung 85 Nm, der Radhersteller kann begrenzen), bis 600 % Unterstützung nur bis 15 km/h und nur in Race, Turbo, eMTB+ und Auto.',
-  '  Je Fahrmodus in der eBike Flow App: Unterstützung, Dynamik, max. Drehmoment, max. Geschwindigkeit (Pedelec: höchstens 25 km/h), Extended Boost. Drivetrain Tensioner nur in eMTB+ und Race.',
+  '- Antrieb: Bosch Performance Line CX (BDU384Y) mit Performance Upgrade 2.0, Kiox 400C, PowerTube 800 Wh. Kein Race-Modus (der ist der CX-R vorbehalten).',
+  '  Upgrade 2.0: Drehmoment bis 120 Nm (Grundeinstellung 85 Nm, der Radhersteller kann begrenzen), bis 600 % Unterstützung nur bis 15 km/h und nur in Turbo, eMTB+ und Auto.',
+  '  Je Fahrmodus in der eBike Flow App: Unterstützung und Dynamik als Regler −5 … +5, max. Drehmoment (Nm), ggf. max. Leistung, max. Geschwindigkeit (höchstens 25 km/h), Extended Boost 0 … 10 (0 = aus), unter „Erweitert“ Traktionskontrolle (aus/niedrig/mittel/hoch) und Drivetrain Tensioner (an/aus, Standard aus). Höchstens 4 Modi als Kiox-Favoriten.',
   '- Nutzung: Touren ab Haustür und Trails im Odenwald, kein Downhill, Flatpedale.',
   '',
   'KONVENTIONEN',
@@ -267,12 +267,12 @@ const SYSTEM_PROMPT = [
   '- Taucht beim Bremsen weg: Druck leicht rauf; Druckstufe nur, wenn sie einstellbar ist.',
   '- Heck wippt bergauf: Firm für lange Anstiege empfehlen, sonst Sag prüfen.',
   '- Zu wenig Grip: Reifendruck in 0,1-bar-Schritten senken; hinten auch ein zu schneller Rebound. Mit Schlauch steigt bei niedrigem Druck das Risiko für Durchschläge und Snakebites – nicht deutlich unter bisherige Werte gehen, Min/Max auf der Reifenflanke beachten.',
-  '- Motor zu ruppig am Trail: Dynamik senken oder eMTB statt Turbo. Zu wenig Schub bergauf: Unterstützung oder max. Drehmoment erhöhen. Akku leert zu schnell: Unterstützung oder Drehmoment senken.',
+  '- Motor zu ruppig am Trail: Dynamik senken, Traktionskontrolle erhöhen oder eMTB statt Turbo. Hinterrad dreht auf losem Untergrund durch: Traktionskontrolle erhöhen. Zu wenig Schub bergauf: Unterstützung oder max. Drehmoment erhöhen. Akku leert zu schnell: Unterstützung oder Drehmoment senken.',
   '',
   'REGELN',
   '1. Schlage genau EINE Änderung vor. Zwei nur, wenn sie zwingend zusammengehören (z. B. Luftdruck erhöht und Rebound minimal schließen) – und sag dann, warum.',
-  '2. Kleine Schritte: Gabel ±3–5 psi, Dämpfer ±5–10 psi, Rebound/Druckstufe ±1–2 Klicks, Reifen ±0,1 bar, Volume Spacer ±1, Bosch-Werte ±1 Stufe bzw. ±10–20 %.',
-  '3. Grenzen einhalten: Dämpfer max. 350 psi, Gabel max. laut Profil (unbekannt → nicht in die Nähe von Extremwerten), Bosch max. 120 Nm bzw. das eingetragene Hersteller-Limit, max. 600 %, max. 25 km/h.',
+  '2. Kleine Schritte: Gabel ±3–5 psi, Dämpfer ±5–10 psi, Rebound/Druckstufe ±1–2 Klicks, Reifen ±0,1 bar, Volume Spacer ±1, Bosch-Regler ±1 Stufe, Drehmoment ±5–10 Nm, Traktionskontrolle eine Stufe.',
+  '3. Grenzen einhalten: Dämpfer max. 350 psi, Gabel max. laut Profil (unbekannt → nicht in die Nähe von Extremwerten), Bosch max. 120 Nm bzw. das eingetragene Hersteller-Limit, Regler −5 … +5, Extended Boost 0 … 10, max. 25 km/h.',
   '4. Nicht raten: Ist der Ausgangswert eines Feldes unbekannt (fehlt im Setup), schlage keinen Zielwert dafür vor, sondern bitte in den Rückfragen darum, ihn abzulesen.',
   '5. Ist die Ursache unklar, gib keine Änderung (leere Liste) und stelle 1–3 gezielte Rückfragen.',
   '6. Klingt es nach einem Defekt (Knacken, Ölverlust, Spiel, Luftverlust, plötzlich anderes Verhalten ohne Setup-Änderung, Bremse), nichts am Setup ändern, sondern unter „warnung“ die Werkstatt empfehlen.',
@@ -298,7 +298,6 @@ const TOOL = {
           properties: {
             pfad: { type: 'string', description: 'Pfad aus der Liste ERLAUBTE PFADE, z. B. gabel.rebound_klicks' },
             nach: { type: 'string', description: 'Neuer Absolutwert: Zahl mit Punkt (z. B. 82 oder 1.7) oder eine erlaubte Option (z. B. Firm).' },
-            einheit: { type: 'string', description: 'Nur bei Bosch-Feldern mit Einheit: Stufe oder %.' },
             begruendung: { type: 'string', description: 'Ein Satz, warum.' },
           },
           required: ['pfad', 'nach', 'begruendung'],
@@ -350,7 +349,7 @@ function kiTipp_(nachricht) {
   const block = (j.content || []).find(b => b.type === 'tool_use');
   if (!block) throw new Error('Claude hat keinen strukturierten Vorschlag geliefert');
   const t = block.input || {};
-  t.aenderungen = (t.aenderungen || []).slice(0, 2).map(a => ({ pfad: String(a.pfad || ''), nach: String(a.nach == null ? '' : a.nach), einheit: a.einheit || '', begruendung: a.begruendung || '' }));
+  t.aenderungen = (t.aenderungen || []).slice(0, 2).map(a => ({ pfad: String(a.pfad || ''), nach: String(a.nach == null ? '' : a.nach), begruendung: a.begruendung || '' }));
   t.rueckfragen = (t.rueckfragen || []).slice(0, 3);
   return { tipp: t, modell: j.model || modell_(), tokens: j.usage || null };
 }

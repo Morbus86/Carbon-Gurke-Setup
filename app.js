@@ -2,7 +2,7 @@
 /* Carbon-Gurke Setup – Logbuch für Fahrwerk, Reifen, Cockpit und Bosch-Fahrmodi
    Daten: lokal (offline) + Google Apps Script (Sheet). KI: Claude über das Apps Script. */
 
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.1.0';
 const LS = { records: 'cgs.records.v1', queue: 'cgs.queue.v1', settings: 'cgs.settings.v1', meta: 'cgs.meta.v1' };
 
 /* =========================================================
@@ -52,11 +52,11 @@ const SECTIONS = [
   ]},
 ];
 
-const BOSCH_MODI = ['Eco', 'Eco+', 'Tour', 'Tour+', 'Auto', 'Sport', 'Turbo', 'Sprint', 'eMTB', 'eMTB+', 'Race'];
-const MODI_600 = ['Race', 'Turbo', 'eMTB+', 'Auto'];
-const MODI_DT = ['eMTB+', 'Race'];
-const MODI_BOOST_STANDARD = ['eMTB', 'eMTB+', 'Race'];
-const UNITS = ['Stufe', '%'];
+/* Fahrmodi Performance Line CX (BDU384Y). Race = nur CX-R, Cargo = nur Cargo Line/PX, Limit = nur S-Pedelec → nicht aufgeführt */
+const BOSCH_MODI = ['Eco', 'Eco+', 'Tour', 'Tour+', 'Sport', 'Sprint', 'Auto', 'eMTB', 'eMTB+', 'Turbo'];
+const MODI_600 = ['Turbo', 'eMTB+', 'Auto'];
+const MODI_BOOST_STANDARD = ['eMTB', 'eMTB+'];
+const KIOX_PLAETZE = ['1', '2', '3', '4'];
 
 const BOSCH_GLOBAL = [
   { k: 'upgrade_20', l: 'Performance Upgrade 2.0 installiert', t: 'select', opt: ['ja', 'nein'], ki: false },
@@ -66,16 +66,19 @@ const BOSCH_GLOBAL = [
 
 const BOSCH_FELDER = [
   { k: 'verfuegbar', l: 'An meinem Rad verfügbar', t: 'bool', ki: false, diffLabel: 'verfügbar' },
-  { k: 'kiox_pos', l: 'Platz auf dem Kiox', t: 'select', opt: ['1', '2', '3', '4', '5'], kind: 'int', ki: false },
-  { k: 'unterstuetzung', l: 'Unterstützung', t: 'unit' },
-  { k: 'dynamik', l: 'Dynamik', t: 'unit' },
-  { k: 'max_drehmoment_nm', l: 'Max. Drehmoment', u: 'Nm', t: 'num', btn: 5 },
-  { k: 'max_geschwindigkeit_kmh', l: 'Max. Geschwindigkeit', u: 'km/h', t: 'num', btn: 1, hint: 'Pedelec: Unterstützung höchstens bis 25 km/h' },
-  { k: 'extended_boost', l: 'Extended Boost', t: 'unit' },
-  { k: 'drivetrain_tensioner', l: 'Drivetrain Tensioner', t: 'select', opt: ['aus', 'an'], nur: MODI_DT },
-  { k: 'drivetrain_stufe', l: 'Drivetrain Tensioner Stufe', t: 'num', btn: 1, nur: MODI_DT, hint: 'nur falls die App Stufen zeigt' },
+  { k: 'kiox_pos', l: 'Platz auf dem Kiox', t: 'select', opt: KIOX_PLAETZE, kind: 'int', ki: false },
+  { k: 'unterstuetzung', l: 'Unterstützung', u: 'Stufe', t: 'num', btn: 1, min: -5, max: 5, hint: 'Regler −5 … +5 · Turbo: 0 ≈ 340 %, +2 ≈ 400 %, +5 ≈ 600 %' },
+  { k: 'dynamik', l: 'Dynamik', u: 'Stufe', t: 'num', btn: 1, min: -5, max: 5, hint: 'Regler −5 … +5 · wie direkt der Motor anspricht' },
+  { k: 'max_drehmoment_nm', l: 'Max. Drehmoment', u: 'Nm', t: 'num', btn: 5, min: 0, max: 120, hint: 'bis 120 Nm mit Upgrade 2.0 (Grundwert 85 Nm)' },
+  { k: 'max_leistung_w', l: 'Max. Leistung', u: 'W', t: 'num', btn: 25, min: 0, hint: 'nur falls die App den Regler anzeigt' },
+  { k: 'max_geschwindigkeit_kmh', l: 'Max. Geschwindigkeit', u: 'km/h', t: 'num', btn: 1, min: 0, max: 25, hint: 'Abschaltgeschwindigkeit, höchstens 25 km/h' },
+  { k: 'extended_boost', l: 'Extended Boost', u: 'Stufe', t: 'num', btn: 1, min: 0, max: 10, hint: '0 = aus · 10 = maximaler Nachlauf (bis ca. 2 m)' },
+  { k: 'traktionskontrolle', l: 'Traktionskontrolle', t: 'select', opt: ['aus', 'niedrig', 'mittel', 'hoch'], hint: 'Flow App: Erweitert → Traktionskontrolle' },
+  { k: 'drivetrain_tensioner', l: 'Drivetrain Tensioner', t: 'select', opt: ['aus', 'an'], hint: 'Kettenvorspannung · nur an/aus, Standard: aus' },
+  { k: 'aktivierungsschwelle', l: 'Aktivierungsschwelle', t: 'num', btn: 1, nur: ['Eco+'], hint: 'ab welcher Last der Motor einsetzt – Wert wie in der App' },
   { k: 'notiz', l: 'Notiz zum Modus', t: 'text', ki: false },
 ];
+const MODUS_KEYS_ALT = { unterstuetzung: 1, dynamik: 1, extended_boost: 1 };
 
 const PROFIL_FELDER = [
   { k: 'groesse_cm', l: 'Körpergröße', u: 'cm', d: 186, btn: 1 },
@@ -151,19 +154,15 @@ function setPath(obj, path, val) {
 }
 function isEmpty(f, v) {
   if (v === null || v === undefined || v === '') return true;
-  if (f.t === 'unit') return v.wert === null || v.wert === undefined || v.wert === '';
   if (f.t === 'bool') return v !== true;
   return false;
 }
 function display(f, v) {
   if (isEmpty(f, v)) return '–';
   switch (f.t) {
-    case 'num': return `${fmtNum(v)}${f.u ? ' ' + f.u : ''}`;
-    case 'unit': {
-      const e = v.einheit || UNITS[0];
-      if (e === 'Stufe') return `Stufe ${v.wert > 0 ? '+' : ''}${fmtNum(v.wert)}`;
-      return `${fmtNum(v.wert)} %`;
-    }
+    case 'num':
+      if (f.u === 'Stufe') return `Stufe ${f.min < 0 && v > 0 ? '+' : ''}${fmtNum(v)}`;
+      return `${fmtNum(v)}${f.u ? ' ' + f.u : ''}`;
     case 'bool': return v ? 'ja' : 'nein';
     case 'select': return f.k === 'kiox_pos' ? `Platz ${v}` : String(v);
     default: return String(v);
@@ -182,6 +181,24 @@ function loadStore() {
   try { store.queue = JSON.parse(localStorage.getItem(LS.queue)) || []; } catch { store.queue = []; }
   try { store.settings = { url: '', token: '', ...(JSON.parse(localStorage.getItem(LS.settings)) || {}) }; } catch { /* Standard */ }
   try { store.meta = { lastSync: null, lastError: null, ...(JSON.parse(localStorage.getItem(LS.meta)) || {}) }; } catch { /* Standard */ }
+  Object.values(store.records).forEach(migriere);
+}
+/* v1.0 → v1.1: Unterstützung/Dynamik/Boost waren {wert, einheit}; jetzt reine Reglerwerte */
+function migriere(rec) {
+  if (!rec || rec.typ !== 'setup' || !rec.data || !rec.data.bosch || !rec.data.bosch.modi) return rec;
+  for (const [m, md] of Object.entries(rec.data.bosch.modi)) {
+    if (!md) continue;
+    for (const k of Object.keys(MODUS_KEYS_ALT)) {
+      const v = md[k];
+      if (!v || typeof v !== 'object') continue;
+      const w = parseNum(v.wert);
+      if (w === null) md[k] = null;
+      else if (v.einheit === '%') { md[k] = null; md.notiz = `${md.notiz ? md.notiz + ' · ' : ''}${k} früher als ${w} % notiert`; }
+      else md[k] = w;
+    }
+    if (md.drivetrain_stufe !== undefined) delete md.drivetrain_stufe;
+  }
+  return rec;
 }
 function persist() {
   try {
@@ -264,7 +281,7 @@ async function sync() {
       if (store.queue.includes(r.id)) continue;
       const lokal = store.records[r.id];
       if (!lokal || (r.updated || '') > (lokal.updated || '')) {
-        store.records[r.id] = { id: r.id, typ: r.typ, created: r.created, updated: r.updated, geloescht: !!r.geloescht, data: r.data };
+        store.records[r.id] = migriere({ id: r.id, typ: r.typ, created: r.created, updated: r.updated, geloescht: !!r.geloescht, data: r.data });
       }
     }
     store.meta.lastSync = nowIso();
@@ -373,24 +390,43 @@ function warnungen(data) {
     else if (nm != null && limit && nm > limit) w[`bosch.modi.${m}.max_drehmoment_nm`] = `über dem Hersteller-Limit (${fmtNum(limit)} Nm)`;
     const kmh = getPath(data, `bosch.modi.${m}.max_geschwindigkeit_kmh`);
     if (kmh != null && kmh > 25) w[`bosch.modi.${m}.max_geschwindigkeit_kmh`] = 'Pedelec: Unterstützung höchstens bis 25 km/h';
-    const u = getPath(data, `bosch.modi.${m}.unterstuetzung`);
-    if (u && u.einheit === '%' && u.wert > 600) w[`bosch.modi.${m}.unterstuetzung`] = 'über 600 % (Maximum mit Upgrade 2.0)';
     const pos = getPath(data, `bosch.modi.${m}.kiox_pos`);
     if (pos) (plaetze[pos] = plaetze[pos] || []).push(m);
   }
   for (const liste of Object.values(plaetze)) if (liste.length > 1) for (const m of liste) w[`bosch.modi.${m}.kiox_pos`] = `Platz doppelt vergeben (${liste.join(', ')})`;
+  // Reglerbereiche (z. B. −5 … +5, 0 … 10)
+  for (const f of FIELDS) {
+    if (f.t !== 'num' || w[f.path] || (f.min === undefined && f.max === undefined)) continue;
+    const v = getPath(data, f.path);
+    if (v === null || v === undefined) continue;
+    if ((f.min !== undefined && v < f.min) || (f.max !== undefined && v > f.max)) {
+      w[f.path] = f.max !== undefined ? `außerhalb des Bereichs ${fmtNum(f.min ?? 0)} … ${fmtNum(f.max)}` : `nicht unter ${fmtNum(f.min)}`;
+    }
+  }
   return w;
 }
 
 /* =========================================================
    KI
    ========================================================= */
-function feldTypText(f, data) {
-  if (f.t === 'num') return `Zahl in ${f.u}`;
-  if (f.t === 'unit') { const e = (getPath(data, f.path) || {}).einheit || 'Stufe'; return `Zahl, Einheit ${UNITS.join(' oder ')} (aktuell ${e})`; }
+function feldTypText(f) {
+  if (f.t === 'num') {
+    const bereich = f.min !== undefined && f.max !== undefined ? ` (${f.min} bis ${f.max})` : (f.max !== undefined ? ` (max. ${f.max})` : '');
+    return f.u === 'Stufe' ? `ganze Zahl (Reglerstufe)${bereich}` : `Zahl in ${f.u}${bereich}`;
+  }
   if (f.t === 'select') return `einer von: ${f.opt.join(', ')}`;
   return '';
 }
+const BOSCH_HINWEISE = [
+  'BOSCH-HINWEISE (Stand eBike Flow 1.38 und Performance Upgrade 2.0 – gelten vorrangig):',
+  '- Motor: Performance Line CX (BDU384Y). Kein Race-Modus (nur CX-R), kein Cargo, kein Limit.',
+  '- Unterstützung und Dynamik sind Regler von −5 bis +5 (ganze Stufen). Laut Prüfstandstest (Velomotion) in Turbo: 0 ≈ 340 %, +2 ≈ 400 %, +5 ≈ 600 %. 600 % gibt es nur bis 15 km/h und nur in Turbo, eMTB+ und Auto.',
+  '- Max. Drehmoment bis 120 Nm (Grundwert 85 Nm), sofern das eingetragene Hersteller-Limit nicht niedriger ist.',
+  '- Extended Boost: Stufe 0 (aus) bis 10 (max. ca. 2 m Nachlauf), je Modus.',
+  '- Traktionskontrolle je Modus: aus, niedrig, mittel, hoch. Trocken eher weniger Eingriff, lose oder nass mehr.',
+  '- Drivetrain Tensioner (Kettenvorspannung) je Modus nur an/aus, Standard aus. Weniger Pedal-Leerweg, direkterer Antritt im technischen Gelände.',
+  '- Höchstens 4 Modi als Favoriten auf dem Kiox.',
+].join('\n');
 function kiNachricht(fb) {
   const s = aktivesSetup();
   const d = s.data;
@@ -417,8 +453,10 @@ function kiNachricht(fb) {
   for (const f of FIELDS) {
     if (f.ki === false || f.t === 'text' || f.t === 'bool') continue;
     if (f.modus && irgendeinModus && !modusRelevant(d, f.modus)) continue;
-    L.push(`- ${f.path} · ${f.label} · ${feldTypText(f, d)}`);
+    L.push(`- ${f.path} · ${f.label} · ${feldTypText(f)}`);
   }
+  L.push('');
+  L.push(BOSCH_HINWEISE);
   L.push('');
   L.push('VERLAUF (neueste zuerst):');
   const ereignisse = [
@@ -444,14 +482,8 @@ function wendeAn(data, aenderungen) {
     if (f.t === 'num') {
       const v = parseNum(a.nach);
       if (v === null) { fail('Wert ist keine Zahl'); continue; }
-      setPath(data, f.path, v);
-    } else if (f.t === 'unit') {
-      const v = parseNum(a.nach);
-      if (v === null) { fail('Wert ist keine Zahl'); continue; }
-      setPath(data, `${f.path}.wert`, v);
-      const e = a.einheit && UNITS.find(u => u.toLowerCase() === String(a.einheit).trim().toLowerCase().replace('prozent', '%').replace('stufen', 'stufe'));
-      if (e) setPath(data, `${f.path}.einheit`, e);
-      else if (!getPath(data, `${f.path}.einheit`)) setPath(data, `${f.path}.einheit`, UNITS[0]);
+      if ((f.min !== undefined && v < f.min) || (f.max !== undefined && v > f.max)) { fail(`außerhalb des Bereichs ${f.min ?? '–'} … ${f.max ?? '–'}`); continue; }
+      setPath(data, f.path, f.u === 'Stufe' ? Math.round(v) : v);
     } else if (f.t === 'select') {
       const o = f.opt.find(x => x.toLowerCase() === String(a.nach).trim().toLowerCase());
       if (!o) { fail(`erlaubt: ${f.opt.join(', ')}`); continue; }
@@ -532,12 +564,13 @@ function sectionKarte(s, data) {
 function modusKurz(m, md) {
   const teile = [];
   for (const f of BOSCH_FELDER) {
-    if (['verfuegbar', 'kiox_pos', 'notiz', 'drivetrain_stufe'].includes(f.k)) continue;
+    if (['verfuegbar', 'kiox_pos', 'notiz'].includes(f.k)) continue;
     if (f.nur && !f.nur.includes(m)) continue;
     const v = md[f.k];
     if (isEmpty(f, v)) continue;
-    const kurz = { unterstuetzung: 'Unterst.', dynamik: 'Dyn.', max_drehmoment_nm: '', max_geschwindigkeit_kmh: 'bis', extended_boost: 'Boost', drivetrain_tensioner: 'DT' }[f.k];
-    teile.push(`${kurz ? kurz + ' ' : ''}${display(f, v)}`);
+    const kurz = { unterstuetzung: 'Unterst.', dynamik: 'Dyn.', max_drehmoment_nm: '', max_leistung_w: '', max_geschwindigkeit_kmh: 'bis', extended_boost: 'Boost', traktionskontrolle: 'Traktion', drivetrain_tensioner: 'DT', aktivierungsschwelle: 'Schwelle' }[f.k];
+    const wert = f.u === 'Stufe' ? display(f, v).replace('Stufe ', '') : display(f, v);
+    teile.push(`${kurz ? kurz + ' ' : ''}${wert}`);
   }
   return teile.join(' · ');
 }
@@ -732,9 +765,11 @@ function viewMehr() {
 /* ---------- Editor ---------- */
 function stepper(path, val, f, cls) {
   const step = f.btn || 1;
+  const grenzen = `${f.min !== undefined ? ` data-min="${f.min}"` : ''}${f.max !== undefined ? ` data-max="${f.max}"` : ''}`;
+  const anzeige = f.u === 'Stufe' && f.min < 0 && val > 0 ? '+' + fmtInput(val) : fmtInput(val);
   return `<div class="stepper${cls || ''}">
     <button type="button" class="step" data-dir="-1" aria-label="weniger">−</button>
-    <input type="text" inputmode="decimal" data-path="${esc(path)}" data-kind="num" data-step="${step}" value="${esc(fmtInput(val))}" placeholder="–" autocomplete="off">
+    <input type="text" inputmode="decimal" data-path="${esc(path)}" data-kind="num" data-step="${step}"${grenzen}${f.u === 'Stufe' && f.min < 0 ? ' data-sign="1"' : ''} value="${esc(anzeige)}" placeholder="–" autocomplete="off">
     ${f.u ? `<span class="suffix">${esc(f.u)}</span>` : ''}
     <button type="button" class="step" data-dir="1" aria-label="mehr">+</button>
   </div>`;
@@ -744,11 +779,6 @@ function control(f, val, hl) {
   const cls = hl && hl.has(p) ? ' changed' : '';
   switch (f.t) {
     case 'num': return stepper(p, val, f, cls);
-    case 'unit': {
-      const e = (val && val.einheit) || UNITS[0];
-      return `<div class="unit-row">${stepper(`${p}.wert`, val ? val.wert : null, { btn: 1 }, cls)}
-        <select data-path="${esc(p)}.einheit" data-kind="text" aria-label="Einheit">${UNITS.map(u => `<option ${u === e ? 'selected' : ''}>${u}</option>`).join('')}</select></div>`;
-    }
     case 'select': return `<select class="${cls.trim()}" data-path="${esc(p)}" data-kind="${f.kind || 'text'}"><option value="">–</option>${f.opt.map(o => `<option value="${esc(o)}" ${String(val ?? '') === String(o) ? 'selected' : ''}>${esc(f.k === 'kiox_pos' ? 'Platz ' + o : o)}</option>`).join('')}</select>`;
     case 'bool': return `<label class="switch"><input type="checkbox" data-path="${esc(p)}" data-kind="bool" ${val ? 'checked' : ''}><span class="track"></span><span>${val ? 'ja' : 'nein'}</span></label>`;
     default: return `<input type="text" class="${cls.trim()}" data-path="${esc(p)}" data-kind="text" value="${esc(val ?? '')}" placeholder="${esc(f.ph || '')}">`;
@@ -757,7 +787,7 @@ function control(f, val, hl) {
 function frow(f, data, hl) {
   let hint = f.hint || '';
   if (f.ziel) hint = `Ziel laut Profil: ${fmtNum(profilWert(f.ziel))} %`;
-  return `<div class="frow${f.t === 'bool' ? ' frow-bool' : ''}${f.t === 'text' || f.t === 'unit' ? ' frow-wide' : ''}">
+  return `<div class="frow${f.t === 'bool' ? ' frow-bool' : ''}${f.t === 'text' ? ' frow-wide' : ''}">
     <div class="flabel"><label>${esc(f.l)}</label></div>
     ${control(f, getPath(data, f.path), hl)}
     ${hint ? `<span class="hint">${esc(hint)}</span>` : ''}
@@ -767,8 +797,9 @@ function frow(f, data, hl) {
 function modusInfo(m) {
   const t = [];
   if (MODI_600.includes(m)) t.push('bis 600 % Unterstützung bis 15 km/h (Upgrade 2.0)');
-  if (MODI_DT.includes(m)) t.push('Drivetrain Tensioner verfügbar');
-  if (MODI_BOOST_STANDARD.includes(m)) t.push('Extended Boost ab Werk mit Standardlänge');
+  if (MODI_BOOST_STANDARD.includes(m)) t.push('Extended Boost ab Werk aktiv');
+  if (m === 'Eco+') t.push('Motor setzt erst ab einer Lastschwelle ein');
+  if (m === 'Auto') t.push('passt die Unterstützung selbst an die Situation an');
   return t.join(' · ');
 }
 function editorHtml(e) {
@@ -802,7 +833,7 @@ function editorHtml(e) {
       <summary><span><strong>Bosch Performance Line CX</strong><span class="sub">Fahrmodi, Kiox-Favoriten, Upgrade 2.0</span></span></summary>
       <div class="form">${BOSCH_GLOBAL.map(f => frow(FIELD_MAP.get(`bosch.global.${f.k}`), d, hl)).join('')}</div>
       <p class="kiox-live small" id="kiox-live"></p>
-      <p class="small muted">Häkchen bei „verfügbar“ für jeden Modus, den dein Rad in der Flow App anbietet. Den Platz auf dem Kiox vergibst du für die Modi, die du am Display durchschaltest. Unterstützung, Dynamik und Boost trägst du so ein, wie die App sie anzeigt (Stufe oder %).</p>
+      <p class="small muted">Häkchen bei „verfügbar“ für jeden Modus, den dein Rad in der Flow App anbietet (welche das sind, legt Cube ab Werk fest). Bis zu 4 Modi vergibst du als Favoriten auf den Kiox – „Off“ ist immer dabei. Werte wie in der Flow App unter „Individuelle Fahrmodi“: Unterstützung und Dynamik −5 … +5, Extended Boost 0 … 10, unter „Erweitert“ Traktionskontrolle und Drivetrain Tensioner.</p>
       <div class="modi">${BOSCH_MODI.map(modusBlock).join('')}</div>
     </details>
     ${sec(SECTIONS.find(s => s.key === 'kontext'))}
@@ -838,7 +869,7 @@ function autoVerfuegbar(el) {
   const det = el.closest('details.modus');
   if (!det || el.dataset.kind === 'bool') return;
   const leer = el.dataset.kind === 'num' ? parseNum(el.value) === null : !String(el.value || '').trim();
-  if (leer || /\.einheit$/.test(el.dataset.path || '')) return;
+  if (leer) return;
   const cb = det.querySelector('input[data-kind="bool"]');
   if (cb && !cb.checked) { cb.checked = true; const lab = cb.parentElement.querySelector('span:last-child'); if (lab) lab.textContent = 'ja'; }
 }
@@ -927,8 +958,10 @@ document.addEventListener('click', async ev => {
     const inp = stepBtn.parentElement.querySelector('input');
     const step = parseFloat(inp.dataset.step) || 1;
     const cur = parseNum(inp.value);
-    const neu = round2((cur === null ? 0 : cur) + Number(stepBtn.dataset.dir) * step);
-    inp.value = fmtInput(neu);
+    let neu = round2((cur === null ? 0 : cur) + Number(stepBtn.dataset.dir) * step);
+    if (inp.dataset.min !== undefined) neu = Math.max(Number(inp.dataset.min), neu);
+    if (inp.dataset.max !== undefined) neu = Math.min(Number(inp.dataset.max), neu);
+    inp.value = inp.dataset.sign && neu > 0 ? '+' + fmtInput(neu) : fmtInput(neu);
     inp.dispatchEvent(new Event('input', { bubbles: true }));
     return;
   }
@@ -1079,7 +1112,7 @@ document.addEventListener('change', async ev => {
       for (const r of recs) {
         if (!r || !r.id || !['setup', 'feedback', 'profil'].includes(r.typ)) continue;
         const lokal = store.records[r.id];
-        if (!lokal || (r.updated || '') > (lokal.updated || '')) { store.records[r.id] = r; if (!store.queue.includes(r.id)) store.queue.push(r.id); n++; }
+        if (!lokal || (r.updated || '') > (lokal.updated || '')) { store.records[r.id] = migriere(r); if (!store.queue.includes(r.id)) store.queue.push(r.id); n++; }
       }
       persist(); scheduleSync(200); render();
       toast(`${n} Einträge importiert`);
