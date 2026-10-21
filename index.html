@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Carbon-Gurke Setup</title>
+  <meta name="description" content="Setup-Logbuch für das Cube ONE44 HPC TM 800: Fahrwerk, Reifen, Cockpit, Bosch-Fahrmodi – mit KI-Tipps.">
+  <meta name="theme-color" content="#29262a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gurke Setup">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="icons/favicon.png" alt="" width="28" height="28">
+      <div>
+        <div class="brand-t">Carbon-Gurke</div>
+        <div class="brand-s">Stereo Hybrid ONE44 HPC TM 800</div>
+      </div>
+    </div>
+    <button id="sync" class="sync off" type="button" aria-live="polite"><i></i><span>nur lokal</span></button>
+  </header>
+
+  <main id="view" class="wrap"></main>
+
+  <nav class="nav" aria-label="Hauptnavigation">
+    <button type="button" data-view="aktiv" class="on">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0 0 4-5M4.5 17a8.5 8.5 0 1 1 15 0"/></svg>
+      <span>Setup</span></button>
+    <button type="button" data-view="ki">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3Zm6 11 .9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9L18 14Z"/></svg>
+      <span>KI-Tipp</span></button>
+    <button type="button" data-view="verlauf">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4M12 8v4l3 2"/></svg>
+      <span>Verlauf</span></button>
+    <button type="button" data-view="mehr">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4"/></svg>
+      <span>Mehr</span></button>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="wrap">Diese App braucht JavaScript.</p></noscript>
+  <script src="app.js"></script>
+</body>
+</html>
