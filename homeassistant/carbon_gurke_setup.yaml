@@ -5,8 +5,12 @@
 #    carbon_gurke_setup_url: "https://script.google.com/macros/s/DEINE_ID/exec?action=aktiv&token=DEIN_APP_TOKEN"
 # 2) Diese Datei nach /config/packages/carbon_gurke_setup.yaml kopieren
 #    (setzt in configuration.yaml voraus:  homeassistant:  packages: !include_dir_named packages)
-#    Ohne Packages: die Blöcke rest: und template: in configuration.yaml übernehmen.
-# 3) Konfiguration prüfen, dann HA neu starten (REST-Integration braucht beim ersten Mal einen Neustart).
+#    Ohne Packages: den Block rest: in configuration.yaml übernehmen.
+# 3) Konfiguration prüfen, dann HA komplett neu starten (nicht nur „Schnelles Neuladen“).
+#
+# Die Einzelsensoren (Gabel/Dämpfer Luftdruck + Rebound, Reifen vorne/hinten, Kiox-Favoriten)
+# sind als Template-Helfer in der HA-Oberfläche angelegt (Einstellungen → Helfer), nicht hier,
+# damit es keine doppelten Entitäten gibt.
 
 rest:
   - resource: !secret carbon_gurke_setup_url
@@ -24,57 +28,3 @@ rest:
           - seit
           - werte
 
-template:
-  - sensor:
-      - name: "Gurke Gabel Luftdruck"
-        unique_id: carbon_gurke_gabel_druck_psi
-        unit_of_measurement: "psi"
-        state_class: measurement
-        icon: mdi:gauge
-        state: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('gabel_druck_psi') }}"
-        availability: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('gabel_druck_psi') is number }}"
-
-      - name: "Gurke Gabel Rebound"
-        unique_id: carbon_gurke_gabel_rebound_klicks
-        unit_of_measurement: "Klicks"
-        state_class: measurement
-        icon: mdi:rotate-left
-        state: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('gabel_rebound_klicks') }}"
-        availability: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('gabel_rebound_klicks') is number }}"
-
-      - name: "Gurke Dämpfer Luftdruck"
-        unique_id: carbon_gurke_daempfer_druck_psi
-        unit_of_measurement: "psi"
-        state_class: measurement
-        icon: mdi:gauge
-        state: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('daempfer_druck_psi') }}"
-        availability: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('daempfer_druck_psi') is number }}"
-
-      - name: "Gurke Dämpfer Rebound"
-        unique_id: carbon_gurke_daempfer_rebound_klicks
-        unit_of_measurement: "Klicks"
-        state_class: measurement
-        icon: mdi:rotate-left
-        state: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('daempfer_rebound_klicks') }}"
-        availability: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('daempfer_rebound_klicks') is number }}"
-
-      - name: "Gurke Reifendruck vorne"
-        unique_id: carbon_gurke_reifen_vorne_bar
-        unit_of_measurement: "bar"
-        state_class: measurement
-        icon: mdi:tire
-        state: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('reifen_vorne_bar') }}"
-        availability: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('reifen_vorne_bar') is number }}"
-
-      - name: "Gurke Reifendruck hinten"
-        unique_id: carbon_gurke_reifen_hinten_bar
-        unit_of_measurement: "bar"
-        state_class: measurement
-        icon: mdi:tire
-        state: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('reifen_hinten_bar') }}"
-        availability: "{{ (state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('reifen_hinten_bar') is number }}"
-
-      - name: "Gurke Kiox-Favoriten"
-        unique_id: carbon_gurke_kiox_favoriten
-        icon: mdi:monitor-dashboard
-        state: "{{ ((state_attr('sensor.carbon_gurke_setup', 'werte') or {}).get('kiox_favoriten') or 'nicht eingetragen')[:250] }}"

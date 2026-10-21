@@ -65,11 +65,11 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
    ```
 2. `homeassistant/carbon_gurke_setup.yaml` nach `/config/packages/` kopieren.
    - Voraussetzung: `homeassistant: packages: !include_dir_named packages` in `configuration.yaml`.
-   - Ohne Packages die Blöcke `rest:` und `template:` direkt übernehmen.
-3. Die Konfiguration prüfen und HA neu starten.
+   - Ohne Packages den Block `rest:` direkt übernehmen.
+3. Die Konfiguration prüfen und HA **komplett** neu starten (Schnelles Neuladen reicht beim ersten Mal nicht).
 4. Ergebnis:
    - `sensor.carbon_gurke_setup`: Name des aktiven Setups, alle Werte im Attribut `werte`
-   - Einzelsensoren für Drücke, Rebound und die Kiox-Favoriten
+   - Einzelsensoren als Template-Helfer (UI, Einstellungen → Helfer): `sensor.carbon_gurke_gabel_luftdruck`, `…_gabel_rebound`, `…_dampfer_luftdruck`, `…_dampfer_rebound`, `…_reifen_vorne`, `…_reifen_hinten`, `…_kiox_favoriten`. Ohne gespeichertes Setup sind sie „nicht verfügbar“.
 
 ## Kosten
 
@@ -95,7 +95,7 @@ Ein KI-Tipp kostet mit Sonnet 5.5 grob 1–2 Cent. Das ist geschätzt bei etwa 4
 | `wartung.js` | Wartung: Aufgaben, Fälligkeit, Protokoll, Belege, Bericht |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline-Fähigkeit, Installation, Icons |
 | `apps-script/Code.gs` | Backend: Sheet, Claude-API, Belege in Drive, Endpunkte für HA (`aktiv`, `wartung`, `stand`) |
-| `homeassistant/carbon_gurke_setup.yaml` | HA-Package (REST- und Template-Sensoren) |
+| `homeassistant/carbon_gurke_setup.yaml` | HA-Package (REST-Sensor; Einzelsensoren sind UI-Helfer) |
 
 ## Schnittstellen für Home Assistant
 
