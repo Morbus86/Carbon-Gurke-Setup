@@ -49,6 +49,14 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
 1. Den Code komplett ersetzen und speichern.
 2. Die Funktion **`einrichten`** erneut ausführen. Ab Version 1.2 fragt Google dabei einmal nach Zugriff auf **Google Drive**, das ist für die Belege nötig. Vorhandene Daten bleiben erhalten.
 3. **Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.** Die URL bleibt gleich.
+4. Kontrolle: In der App unter **Mehr → Speichern & testen**. Die Meldung zeigt die neue Backend-Version.
+
+**Neues Token (APP_TOKEN wechseln):**
+1. **Projekteinstellungen** (Zahnrad links) → **Skripteigenschaften bearbeiten** → bei `APP_TOKEN` auf den Papierkorb → **Skripteigenschaften speichern**.
+2. Im Editor die Funktion **`einrichten`** ausführen. Im Ausführungsprotokoll steht das neue APP_TOKEN. Eine neue Bereitstellung ist dafür nicht nötig.
+3. Das neue Token überall eintragen, wo das alte stand:
+   - App, auf jedem Gerät: **Mehr → Token** → **Speichern & testen**
+   - Home Assistant: in `secrets.yaml` bei `carbon_gurke_setup_url` den Teil nach `token=` ersetzen, dann HA **komplett** neu starten
 
 ### 2. App
 

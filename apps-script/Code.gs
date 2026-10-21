@@ -14,7 +14,7 @@
  * Einmalig im Editor die Funktion einrichten() ausführen.
  */
 
-const VERSION = '1.2.0';
+const VERSION = '1.2.1';
 const STANDARD_MODELL = 'claude-sonnet-5-5';
 const PROPS = PropertiesService.getScriptProperties();
 const KOPF = ['id', 'typ', 'created', 'updated', 'geloescht', 'json', 'lesbar'];
@@ -333,7 +333,8 @@ const SYSTEM_PROMPT = [
   '- Antrieb: Bosch Performance Line CX (BDU384Y) mit Performance Upgrade 2.0, Kiox 400C, PowerTube 800 Wh. Kein Race-Modus (der ist der CX-R vorbehalten).',
   '  Upgrade 2.0: Drehmoment bis 120 Nm (Grundeinstellung 85 Nm, der Radhersteller kann begrenzen), bis 600 % Unterstützung nur bis 15 km/h und nur in Turbo, eMTB+ und Auto.',
   '  Je Fahrmodus in der eBike Flow App: Unterstützung und Dynamik als Regler −5 … +5, max. Drehmoment (Nm), ggf. max. Leistung, max. Geschwindigkeit (höchstens 25 km/h), Extended Boost 0 … 10 (0 = aus), unter „Erweitert“ Traktionskontrolle (aus/niedrig/mittel/hoch) und Drivetrain Tensioner (an/aus, Standard aus). Höchstens 4 Modi als Kiox-Favoriten.',
-  '- Nutzung: Touren ab Haustür und Trails im Odenwald, kein Downhill, Flatpedale.',
+  '- Nutzung: Touren ab Haustür über Feld- und Waldwege im Odenwald, Flowtrails und Abfahrten, gelegentlich Downhill, Bikepark kaum. Flatpedale.',
+  '- Gregor ist MTB-Einsteiger: Handgriffe kurz und konkret erklären (wo der Regler sitzt, in welche Richtung drehen).',
   '',
   'KONVENTIONEN',
   '- Vorne = Gabel, hinten = Dämpfer. Umgangssprache wie „Dämpfer vorne“ meint die Gabel.',
