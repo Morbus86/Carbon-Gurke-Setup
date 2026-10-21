@@ -2,7 +2,7 @@
 /* Carbon-Gurke Setup – Logbuch für Fahrwerk, Reifen, Cockpit und Bosch-Fahrmodi
    Daten: lokal (offline) + Google Apps Script (Sheet). KI: Claude über das Apps Script. */
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 const LS = { records: 'cgs.records.v1', queue: 'cgs.queue.v1', settings: 'cgs.settings.v1', meta: 'cgs.meta.v1' };
 
 /* =========================================================
