@@ -9,11 +9,12 @@
  *   ANTHROPIC_API_KEY  – dein Claude-API-Key (sk-ant-…)
  *   MODEL              – optional, Standard: claude-sonnet-5-5
  *   SHEET_ID           – wird von einrichten() gesetzt
+ *   BELEGE_ORDNER_ID   – Drive-Ordner für Rechnungen/Protokolle, wird von einrichten() angelegt
  *
  * Einmalig im Editor die Funktion einrichten() ausführen.
  */
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const STANDARD_MODELL = 'claude-sonnet-5-5';
 const PROPS = PropertiesService.getScriptProperties();
 const KOPF = ['id', 'typ', 'created', 'updated', 'geloescht', 'json', 'lesbar'];
@@ -41,10 +42,12 @@ function einrichten() {
   }
   blatt_(ss, 'Setups');
   blatt_(ss, 'Rückmeldungen');
+  blatt_(ss, 'Wartung');
   const leer = ss.getSheetByName('Tabellenblatt1') || ss.getSheetByName('Sheet1');
   if (leer && ss.getSheets().length > 1) ss.deleteSheet(leer);
 
   Logger.log('Sheet: ' + ss.getUrl());
+  Logger.log('Belege-Ordner: ' + belegOrdner_().getUrl());
   Logger.log('APP_TOKEN: ' + token);
   Logger.log(PROPS.getProperty('ANTHROPIC_API_KEY') ? 'Claude-API-Key: vorhanden' : 'Claude-API-Key: FEHLT – unter Skripteigenschaften als ANTHROPIC_API_KEY eintragen');
 }
@@ -65,6 +68,7 @@ function doGet(e) {
       case 'ping': return { version: VERSION, ki: !!PROPS.getProperty('ANTHROPIC_API_KEY'), modell: modell_() };
       case 'alle': return { records: alleRecords_() };
       case 'aktiv': return aktivFuerHa_();
+      case 'wartung': return wartungFuerHa_();
       default: throw new Error('Unbekannte Aktion: ' + p.action);
     }
   });
@@ -77,6 +81,9 @@ function doPost(e) {
     pruefeToken_(body.token);
     switch (body.action) {
       case 'upsert': return { gespeichert: upsert_(body.records || []) };
+      case 'beleg': return { beleg: belegSpeichern_(body) };
+      case 'beleg_loeschen': return { geloescht: belegLoeschen_(body.id) };
+      case 'stand': return standSpeichern_(body);
       case 'ki': {
         if (!body.nachricht || String(body.nachricht).length > 60000) throw new Error('Nachricht fehlt oder ist zu lang');
         return kiTipp_(String(body.nachricht));
@@ -128,7 +135,7 @@ function upsert_(records) {
     const neu = [];
     for (const rec of records) {
       if (!rec || !rec.id || !/^[a-z0-9_]{3,40}$/i.test(rec.id)) continue;
-      if (['setup', 'feedback', 'profil'].indexOf(rec.typ) < 0) continue;
+      if (['setup', 'feedback', 'profil', 'wartung', 'stand'].indexOf(rec.typ) < 0) continue;
       const zeile = [rec.id, rec.typ, rec.created || '', rec.updated || '', rec.geloescht ? 1 : 0, JSON.stringify(rec.data || {}), rec.lesbar ? JSON.stringify(rec.lesbar) : ''];
       if (index[rec.id] !== undefined) {
         const alt = rows[index[rec.id]];
@@ -179,6 +186,7 @@ function lesbareBlaetter_(ss, rows) {
   };
   bauen('Setups', 'setup');
   bauen('Rückmeldungen', 'feedback');
+  bauen('Wartung', 'wartung');
 }
 
 /* ============================ Home Assistant ============================ */
@@ -231,6 +239,83 @@ function flach_(obj, prefix, out) {
       out[key] = v;
     }
   }
+}
+
+/* ============================ Wartung: Belege, Stand, HA ============================ */
+
+const BELEG_TYPEN_ERLAUBT = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const BELEG_MAX_BYTES = 15 * 1024 * 1024;
+
+function belegOrdner_() {
+  const id = PROPS.getProperty('BELEGE_ORDNER_ID');
+  if (id) {
+    try { const f = DriveApp.getFolderById(id); if (!f.isTrashed()) return f; } catch (e) { /* neu anlegen */ }
+  }
+  const sheetId = PROPS.getProperty('SHEET_ID');
+  let eltern = DriveApp.getRootFolder();
+  if (sheetId) { const it = DriveApp.getFileById(sheetId).getParents(); if (it.hasNext()) eltern = it.next(); }
+  const ordner = eltern.createFolder('Carbon-Gurke Belege');
+  ordner.setDescription('Rechnungen, Bosch-Diagnoseprotokolle und Fotos aus der App „Carbon-Gurke Setup“');
+  PROPS.setProperty('BELEGE_ORDNER_ID', ordner.getId());
+  return ordner;
+}
+
+function belegSpeichern_(b) {
+  const mime = String(b.mime || '');
+  if (BELEG_TYPEN_ERLAUBT.indexOf(mime) < 0) throw new Error('Dateityp nicht erlaubt: ' + mime);
+  if (!b.daten) throw new Error('Datei fehlt');
+  const bytes = Utilities.base64Decode(String(b.daten));
+  if (bytes.length > BELEG_MAX_BYTES) throw new Error('Datei zu groß (max. 15 MB)');
+  const name = String(b.name || 'beleg').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 120);
+  const typ = String(b.typ || 'Beleg').slice(0, 40);
+  const datei = belegOrdner_().createFile(Utilities.newBlob(bytes, mime, name));
+  datei.setDescription('Wartung ' + String(b.wartung_id || '').slice(0, 40) + ' · ' + typ);
+  return { id: datei.getId(), url: datei.getUrl(), name: datei.getName(), mime: mime, groesse: bytes.length, typ: typ, hochgeladen: new Date().toISOString() };
+}
+
+function belegLoeschen_(id) {
+  if (!id) throw new Error('id fehlt');
+  const datei = DriveApp.getFileById(String(id));
+  const ordnerId = belegOrdner_().getId();
+  const eltern = datei.getParents();
+  let erlaubt = false;
+  while (eltern.hasNext()) if (eltern.next().getId() === ordnerId) erlaubt = true;
+  if (!erlaubt) throw new Error('Datei liegt nicht im Belege-Ordner');
+  datei.setTrashed(true);
+  return true;
+}
+
+/** Kilometerstand und Motorstunden – von Home Assistant (rest_command) oder manuell. */
+function standSpeichern_(b) {
+  const km = Number(b.km);
+  if (!isFinite(km) || km < 0) throw new Error('km ungültig');
+  const hRoh = b.motorstunden;
+  const h = hRoh === undefined || hRoh === null || hRoh === '' ? null : Number(hRoh);
+  const jetzt = new Date().toISOString();
+  upsert_([{ id: 'stand', typ: 'stand', created: jetzt, updated: jetzt, data: { km: km, motorstunden: isFinite(h) ? h : null, zeit: jetzt, quelle: String(b.quelle || 'Home Assistant').slice(0, 40) } }]);
+  return { km: km, motorstunden: isFinite(h) ? h : null };
+}
+
+/** Für HA: letzter Eintrag je Wartungsaufgabe, Stand und Termine. Fälligkeit rechnet HA selbst. */
+function wartungFuerHa_() {
+  const recs = alleRecords_().filter(r => !r.geloescht);
+  const stand = recs.find(r => r.typ === 'stand');
+  const profil = recs.find(r => r.typ === 'profil');
+  const zuletzt = {};
+  recs.filter(r => r.typ === 'wartung').forEach(r => {
+    const a = r.data.aufgabe;
+    if (!a || !/^W\d\d$/.test(a)) return;
+    const alt = zuletzt[a];
+    if (!alt || String(r.data.datum || '') > String(alt.datum || '')) {
+      zuletzt[a] = { datum: r.data.datum || null, km: r.data.km == null ? null : r.data.km, motorstunden: r.data.motorstunden == null ? null : r.data.motorstunden, wer: r.data.wer === 'Andere' ? (r.data.wer_frei || 'Andere') : (r.data.wer || '') };
+    }
+  });
+  const p = (profil && profil.data) || {};
+  return {
+    stand: stand ? stand.data : null,
+    termine: { uebergabe_datum: p.uebergabe_datum || null, rechnung_datum: p.rechnung_datum || null, flowplus_datum: p.flowplus_datum || null, eingelagert_seit: p.eingelagert_seit || null },
+    zuletzt: zuletzt,
+  };
 }
 
 /* ============================ Claude ============================ */

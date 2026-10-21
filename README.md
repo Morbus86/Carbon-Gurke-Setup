@@ -19,6 +19,13 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
 - **KI-Tipp:** Du schreibst z. B. „Gabel zu hart“. Claude bekommt dein aktives Setup und den Verlauf und schlägt **eine** Änderung vor. Mit „Übernehmen & prüfen“ öffnet sich der Editor, das geänderte Feld ist markiert. Erst am Rad einstellen, dann speichern.
 - **Offline:** Ohne Netz wird lokal gespeichert und später synchronisiert. KI-Tipps brauchen Netz.
 - **Home Assistant:** Ein REST-Sensor holt das aktive Setup mit allen Werten.
+- **Wartung** (Tab „Wartung“):
+  - Aufgaben **W01–W17** aus dem Wartungsplan mit Fälligkeit nach km, Motorstunden oder Zeit. Es gilt, was zuerst eintritt.
+  - Einträge mit Datum, km, Motorstunden, Werkstatt, Kosten, „Serviceheft gestempelt“, „HUK-relevant“ und „Verschleißgrenze erreicht“.
+  - Messwerte: Kettenlängung, Beläge, Scheiben. Die App warnt bei Grenzwerten (0,8 % bzw. ≤ 3 mm).
+  - **Belege** (Rechnung, Bosch-Diagnoseprotokoll, Fotos) landen im Google-Drive-Ordner „Carbon-Gurke Belege“. Fotos werden vor dem Hochladen verkleinert.
+  - **Bericht** mit Filter (Zeitraum, nur HUK, nur Werkstatt), zum Drucken oder als PDF.
+  - **Stand** (km, Motorstunden) erst manuell, später automatisch aus Home Assistant.
 
 **Konvention:** Klicks werden immer von ganz zu gezählt. Im Uhrzeigersinn ganz eindrehen ergibt 0, ab da gegen den Uhrzeigersinn zählen.
 
@@ -38,12 +45,16 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
    - Zugriff: **Jeder**
    - Danach die **Web-App-URL** (endet auf `/exec`) kopieren.
 
-**Wenn du `Code.gs` später änderst** (z. B. nach einem Update hier im Repo): Unter **Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version** neu bereitstellen. So bleibt die URL gleich.
+**Wenn du `Code.gs` später änderst** (z. B. nach einem Update hier im Repo):
+1. Den Code komplett ersetzen und speichern.
+2. Die Funktion **`einrichten`** erneut ausführen. Ab Version 1.2 fragt Google dabei einmal nach Zugriff auf **Google Drive**, das ist für die Belege nötig. Vorhandene Daten bleiben erhalten.
+3. **Bereitstellen → Bereitstellungen verwalten → Bearbeiten (Stift) → Version: Neue Version → Bereitstellen.** Die URL bleibt gleich.
 
 ### 2. App
 
 1. Die App öffnen und unter **Mehr** die Web-App-URL und das Token eintragen. Mit **Speichern & testen** prüfen.
 2. Unter **Mehr → Profil** den **Dämpfer-Hub** eintragen (für den Sag-Rechner) sowie den **max. Gabeldruck** vom Aufkleber am Gabelholm.
+   - Unter **Termine** das Übergabedatum, das Rechnungsdatum und die Flow+-Aktivierung eintragen. Daraus berechnet die App die Zeit-Intervalle.
 3. Auf dem Handy **Zum Startbildschirm hinzufügen**, dann läuft die App wie eine normale App.
 
 ### 3. Home Assistant
@@ -71,6 +82,8 @@ Ein KI-Tipp kostet mit Sonnet 5.5 grob 1–2 Cent. Das ist geschätzt bei etwa 4
   - Blatt `Daten`: Rohdaten
   - Blatt `Setups`: lesbare Tabelle
   - Blatt `Rückmeldungen`: Rückmeldungen und KI-Tipps
+  - Blatt `Wartung`: Wartungsprotokoll mit Links zu den Belegen
+- Die Belege liegen im Drive-Ordner „Carbon-Gurke Belege“. Sie sind nicht freigegeben, nur du kannst sie öffnen.
 - URL und Token stehen nur im Browser-Speicher deines Geräts.
 - Eine Sicherung als JSON gibt es unter **Mehr → Exportieren**.
 
@@ -79,6 +92,17 @@ Ein KI-Tipp kostet mit Sonnet 5.5 grob 1–2 Cent. Das ist geschätzt bei etwa 4
 | Datei | Zweck |
 |---|---|
 | `index.html`, `app.js`, `styles.css` | App |
+| `wartung.js` | Wartung: Aufgaben, Fälligkeit, Protokoll, Belege, Bericht |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Offline-Fähigkeit, Installation, Icons |
-| `apps-script/Code.gs` | Backend: Sheet, Claude-API, HA-Endpunkt |
+| `apps-script/Code.gs` | Backend: Sheet, Claude-API, Belege in Drive, Endpunkte für HA (`aktiv`, `wartung`, `stand`) |
 | `homeassistant/carbon_gurke_setup.yaml` | HA-Package (REST- und Template-Sensoren) |
+
+## Schnittstellen für Home Assistant
+
+| Aufruf | Zweck |
+|---|---|
+| `GET …/exec?action=aktiv&token=…` | aktives Setup (REST-Sensor) |
+| `GET …/exec?action=wartung&token=…` | letzter Eintrag je Aufgabe W01–W17, Stand, Termine. Die Fälligkeit rechnet HA. |
+| `POST …/exec` mit `{"action":"stand","token":"…","km":123.4,"motorstunden":7}` | Kilometerstand und Motorstunden, z. B. aus der Bosch-Integration |
+
+Die Erinnerungen in HA (Telegram mit „Erledigt“) kommen, sobald die Bosch-Integration nach der Übergabe läuft.

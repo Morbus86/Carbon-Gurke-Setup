@@ -2,7 +2,7 @@
 /* Carbon-Gurke Setup – Logbuch für Fahrwerk, Reifen, Cockpit und Bosch-Fahrmodi
    Daten: lokal (offline) + Google Apps Script (Sheet). KI: Claude über das Apps Script. */
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 const LS = { records: 'cgs.records.v1', queue: 'cgs.queue.v1', settings: 'cgs.settings.v1', meta: 'cgs.meta.v1' };
 
 /* =========================================================
@@ -271,7 +271,8 @@ async function sync() {
   try {
     if (store.queue.length) {
       const ids = [...store.queue];
-      const recs = ids.map(id => store.records[id]).filter(Boolean).map(r => ({ ...r, lesbar: r.typ === 'setup' ? lesbar(r) : r.typ === 'feedback' ? lesbarFeedback(r) : null }));
+      const lesbarFuer = r => r.typ === 'setup' ? lesbar(r) : r.typ === 'feedback' ? lesbarFeedback(r) : r.typ === 'wartung' ? lesbarWartung(r) : null;
+      const recs = ids.map(id => store.records[id]).filter(Boolean).map(r => ({ ...r, lesbar: lesbarFuer(r) }));
       const sent = new Map(recs.map(r => [r.id, r.updated]));
       await apiPost({ action: 'upsert', records: recs });
       store.queue = store.queue.filter(id => !sent.has(id) || (store.records[id] && store.records[id].updated !== sent.get(id)));
@@ -292,7 +293,7 @@ async function sync() {
     ui.syncing = false;
     persist();
     updateStatus();
-    if (ui.view === 'aktiv' || ui.view === 'verlauf' || ui.view === 'mehr') render();
+    if (['aktiv', 'verlauf', 'mehr', 'wartung', 'bericht'].includes(ui.view)) render();
   }
 }
 
@@ -458,6 +459,8 @@ function kiNachricht(fb) {
   L.push('');
   L.push(BOSCH_HINWEISE);
   L.push('');
+  const wt = wartungKiText();
+  if (wt) { L.push(wt); L.push(''); }
   L.push('VERLAUF (neueste zuerst):');
   const ereignisse = [
     ...setups().slice(0, 6).map(r => ({ zeit: r.created, text: `${fmtDate(r.created)} Setup „${r.data.name || ''}“ (${r.data.anlass || '–'}): ${diff(vorgaenger(r) && vorgaenger(r).data, r.data).map(x => `${x.f.label} ${x.von} → ${x.nach}`).join('; ') || 'Basis-Setup'}` })),
@@ -538,12 +541,15 @@ async function kiAnfrage() {
    Rendering
    ========================================================= */
 function render() {
-  $$('.nav button').forEach(b => b.classList.toggle('on', b.dataset.view === ui.view || (ui.view === 'editor' && b.dataset.view === 'aktiv')));
-  document.body.classList.toggle('editing', ui.view === 'editor');
+  const navView = { editor: 'aktiv', 'wartung-edit': 'wartung', bericht: 'wartung' }[ui.view] || ui.view;
+  $$('.nav button').forEach(b => b.classList.toggle('on', b.dataset.view === navView));
+  document.body.classList.toggle('editing', ui.view === 'editor' || ui.view === 'wartung-edit');
   const v = $('#view');
-  if (ui.view === 'editor') return; // Editor rendert sich selbst, damit Eingaben nicht verloren gehen
+  if (ui.view === 'editor' || ui.view === 'wartung-edit') return; // Editoren rendern sich selbst, damit Eingaben nicht verloren gehen
   if (ui.view === 'aktiv') v.innerHTML = viewAktiv();
   else if (ui.view === 'ki') v.innerHTML = viewKi();
+  else if (ui.view === 'wartung') v.innerHTML = viewWartung();
+  else if (ui.view === 'bericht') v.innerHTML = viewBericht();
   else if (ui.view === 'verlauf') v.innerHTML = viewVerlauf();
   else if (ui.view === 'mehr') v.innerHTML = viewMehr();
   updateStatus();
@@ -612,6 +618,7 @@ function viewAktiv() {
         <button class="btn" data-view-go="ki">KI-Tipp holen</button>
       </div>
     </section>
+    ${wartungTeaser()}
     <div class="grid">
       ${SECTIONS.filter(x => x.key !== 'kontext').map(x => sectionKarte(x, d)).join('')}
       ${boschKarte(d)}
@@ -740,6 +747,9 @@ function viewMehr() {
     <div class="form" id="profil-form">
       ${PROFIL_FELDER.map(f => `<div class="frow"><div class="flabel"><label>${esc(f.l)}</label></div>
         ${stepper(`profil.${f.k}`, p[f.k], { u: f.u, btn: f.btn }, '')}</div>`).join('')}
+      <h3 class="subhead">Termine</h3>
+      ${TERMIN_FELDER.map(f => `<div class="frow"><div class="flabel"><label for="t-${f.k}">${esc(f.l)}</label></div>
+        <input type="date" id="t-${f.k}" data-path="profil.${f.k}" data-kind="date" value="${esc(p[f.k] || '')}"><span class="hint">${esc(f.hint)}</span></div>`).join('')}
     </div>
     <div class="actions"><button class="btn primary" data-act="profil-save">Profil speichern</button></div>
   </section>
@@ -939,6 +949,7 @@ function toast(msg, typ = '') {
    Events
    ========================================================= */
 function goto(view) {
+  if (ui.view === 'wartung-edit') { wartungAbbrechen(view); return; }
   if (ui.view === 'editor' && ui.editor && ui.editor.dirty && !confirm('Änderungen im Editor verwerfen?')) return;
   if (ui.view === 'editor') ui.editor = null;
   ui.view = view;
@@ -1110,7 +1121,7 @@ document.addEventListener('change', async ev => {
       const recs = Array.isArray(j.records) ? j.records : [];
       let n = 0;
       for (const r of recs) {
-        if (!r || !r.id || !['setup', 'feedback', 'profil'].includes(r.typ)) continue;
+        if (!r || !r.id || !['setup', 'feedback', 'profil', 'wartung', 'stand'].includes(r.typ)) continue;
         const lokal = store.records[r.id];
         if (!lokal || (r.updated || '') > (lokal.updated || '')) { store.records[r.id] = migriere(r); if (!store.queue.includes(r.id)) store.queue.push(r.id); n++; }
       }
@@ -1131,7 +1142,10 @@ document.addEventListener('change', async ev => {
 window.addEventListener('online', () => { updateStatus(); scheduleSync(300); });
 window.addEventListener('offline', updateStatus);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleSync(500); });
-window.addEventListener('beforeunload', ev => { if (ui.view === 'editor' && ui.editor && ui.editor.dirty) { ev.preventDefault(); ev.returnValue = ''; } });
+window.addEventListener('beforeunload', ev => {
+  const dirty = (ui.view === 'editor' && ui.editor && ui.editor.dirty) || (ui.view === 'wartung-edit' && ui.wedit && (ui.wedit.dirty || ui.wedit.uploads));
+  if (dirty) { ev.preventDefault(); ev.returnValue = ''; }
+});
 
 /* =========================================================
    Start
