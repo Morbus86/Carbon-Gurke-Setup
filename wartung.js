@@ -22,7 +22,7 @@ const MESS_BREMSE = ['belag_vorn_mm', 'belag_hinten_mm'];
 const MESS_SCHEIBE = ['scheibe_vorn_mm', 'scheibe_hinten_mm'];
 const MESS_ALLE = MESSWERTE.map(m => m.k);
 
-/* Quelle: claude/E-MTB_Wartungsplan.md (Stand 19.10.2026), Abschnitt 4, 5 und 8 */
+/* Quelle: claude/E-MTB_Wartungsplan.md (Stand 21.10.2026), Abschnitt 4, 5 und 8 – W18 ergänzt */
 const AUFGABEN = [
   { id: 'W01', t: 'Erstinspektion', km: 200, monate: 2, einmalig: true, wer: 'Werkstatt', quelle: 'Cube', mess: MESS_ALLE, werkstatt: true, hinweis: 'Pflicht für die Garantie · Serviceheft stempeln · Bosch-Diagnoseprotokoll anfordern' },
   { id: 'W02', t: 'Inspektion inkl. Bosch-System', km: 2000, monate: 12, basisAuch: ['W01'], wer: 'Werkstatt', quelle: 'Cube, Bosch', mess: MESS_ALLE, werkstatt: true, hinweis: 'Serviceheft stempeln · Bosch-Diagnoseprotokoll anfordern' },
@@ -41,6 +41,7 @@ const AUFGABEN = [
   { id: 'W15', t: 'Akku-Ladestand prüfen (Lagerung)', fix: { feld: 'eingelagert_seit', monate: 6 }, einmalig: true, nurEingelagert: true, wer: 'Gregor', quelle: 'Bosch', hinweis: 'Ziel 30–60 %, Lagerung ideal 10–20 °C' },
   { id: 'W16', t: 'Rad im Lager bewegen', wochen: 3, nurEingelagert: true, start: 'eingelagert_seit', wer: 'Gregor', quelle: 'Cube', hinweis: 'alle 2–3 Wochen anheben, Räder und Kurbel rückwärts drehen' },
   { id: 'W17', t: 'HUK-Verschleißschutz endet – prüfen, ggf. kündigen', fix: { feld: 'rechnung_datum', monate: 36 }, einmalig: true, vorlaufTage: 61, wer: 'Gregor', quelle: 'HUK VFS A.3.2.2, B.2', hinweis: 'Kündigung spätestens 1 Monat vor Ende des Versicherungsjahres' },
+  { id: 'W18', t: 'Dropper-Sattelstütze ausbauen, Mechanik reinigen und schmieren', monate: 12, wer: 'Werkstatt (mit der Inspektion)', quelle: 'ENDURO (allgemein) · Intervall eigener Vorschlag, CUBE-Angabe fehlt', werkstatt: true, hinweis: 'nach jeder Fahrt das Standrohr abwischen · Herstellerangabe in der Komponentenanleitung bei der Übergabe prüfen' },
 ];
 const AUFGABE_MAP = new Map(AUFGABEN.map(a => [a.id, a]));
 

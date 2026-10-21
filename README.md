@@ -20,7 +20,7 @@ Logbuch für das Setup des Cube Stereo Hybrid ONE44 HPC TM 800: Fahrwerk, Reifen
 - **Offline:** Ohne Netz wird lokal gespeichert und später synchronisiert. KI-Tipps brauchen Netz.
 - **Home Assistant:** Ein REST-Sensor holt das aktive Setup mit allen Werten.
 - **Wartung** (Tab „Wartung“):
-  - Aufgaben **W01–W17** aus dem Wartungsplan mit Fälligkeit nach km, Motorstunden oder Zeit. Es gilt, was zuerst eintritt.
+  - Aufgaben **W01–W18** aus dem Wartungsplan mit Fälligkeit nach km, Motorstunden oder Zeit. Es gilt, was zuerst eintritt.
   - Einträge mit Datum, km, Motorstunden, Werkstatt, Kosten, „Serviceheft gestempelt“, „HUK-relevant“ und „Verschleißgrenze erreicht“.
   - Messwerte: Kettenlängung, Beläge, Scheiben. Die App warnt bei Grenzwerten (0,8 % bzw. ≤ 3 mm).
   - **Belege** (Rechnung, Bosch-Diagnoseprotokoll, Fotos) landen im Google-Drive-Ordner „Carbon-Gurke Belege“. Fotos werden vor dem Hochladen verkleinert.

@@ -1,5 +1,5 @@
 /* Service Worker – App-Shell offline, Fonts gecacht, Apps-Script-Aufrufe nie gecacht */
-const CACHE = 'cgs-v1.2.0';
+const CACHE = 'cgs-v1.2.1';
 const SHELL = [
   './', 'index.html', 'styles.css', 'wartung.js', 'app.js', 'manifest.webmanifest',
   'icons/favicon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
