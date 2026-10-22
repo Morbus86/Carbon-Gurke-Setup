@@ -4,8 +4,11 @@
    Protokoll mit Messwerten für die HUK und Belegen (Google Drive über das Apps Script).
    Nutzt die globalen Helfer aus app.js. */
 
-const WER_OPTIONEN = ['Gregor', "Michel's Bike Shop", 'Multicycle Weiterstadt', 'Andere'];
-const WERKSTAETTEN = ["Michel's Bike Shop", 'Multicycle Weiterstadt', 'Andere'];
+const WER_PRIVAT = 'Privat (selbst)';
+const WER_OPTIONEN = ['Multicycle Weiterstadt', "Michel's Bike Shop", WER_PRIVAT, 'Andere'];
+const WERKSTAETTEN = ['Multicycle Weiterstadt', "Michel's Bike Shop", 'Andere'];
+const werStandard = a => (a && !a.werkstatt ? WER_PRIVAT : 'Multicycle Weiterstadt');
+const werNormal = w => (w === 'Gregor' ? WER_PRIVAT : w); // Einträge vor v1.2.2
 const BELEG_TYPEN = ['Rechnung', 'Bosch-Diagnoseprotokoll', 'Serviceheft (Foto)', 'Foto', 'Sonstiges'];
 const FREIE_ARTEN = ['Reparatur', 'Teiletausch', 'Sturz / Unfall', 'Sonstiges'];
 const BELEG_MAX_BYTES = 10 * 1024 * 1024;
@@ -207,7 +210,7 @@ function aufgabeTitel(d) {
   const a = AUFGABE_MAP.get(d.aufgabe);
   return d.titel || (a ? a.t : (d.aufgabe || '').replace(/^frei:/, '')) || 'Eintrag';
 }
-function wer(d) { return d.wer === 'Andere' ? (d.wer_frei || 'andere Werkstatt') : (d.wer || '–'); }
+function wer(d) { return d.wer === 'Andere' ? (d.wer_frei || 'andere') : (werNormal(d.wer) || '–'); }
 
 function taskKarte(st) {
   const a = st.a;
@@ -381,7 +384,7 @@ function wartungDefaults(aufgabe) {
   const s = aktuellerStand();
   return {
     aufgabe: aufgabe || 'frei:Reparatur', titel: '', datum: heuteIso(), km: s.km, motorstunden: s.h,
-    wer: a ? (a.werkstatt ? "Michel's Bike Shop" : 'Gregor') : "Michel's Bike Shop", wer_frei: null, kosten_eur: null,
+    wer: werStandard(a), wer_frei: null, kosten_eur: null,
     serviceheft: false, huk: false, verschleissgrenze: false, messwerte: {}, notiz: null, belege: [],
   };
 }
@@ -422,8 +425,8 @@ function zeichneWartungEditor() {
         <div class="frow"><div class="flabel"><label>Datum</label></div><input type="date" data-path="datum" data-kind="date" value="${esc(d.datum || '')}" required></div>
         <div class="frow"><div class="flabel"><label>Kilometerstand</label></div>${stepper('km', d.km, { u: 'km', btn: 10, min: 0 }, '')}</div>
         <div class="frow"><div class="flabel"><label>Motorstunden</label></div>${stepper('motorstunden', d.motorstunden, { u: 'h', btn: 1, min: 0 }, '')}</div>
-        <div class="frow"><div class="flabel"><label>Ausgeführt von</label></div><select data-path="wer" data-kind="text" id="w-wer">${WER_OPTIONEN.map(o => `<option ${o === d.wer ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>
-        <div class="frow frow-wide" id="w-wer-frei" ${d.wer === 'Andere' ? '' : 'hidden'}><div class="flabel"><label>Werkstatt</label></div><input type="text" data-path="wer_frei" data-kind="text" value="${esc(d.wer_frei || '')}" placeholder="Name der Werkstatt"></div>
+        <div class="frow"><div class="flabel"><label>Ausgeführt von</label></div><select data-path="wer" data-kind="text" id="w-wer">${WER_OPTIONEN.map(o => `<option ${o === werNormal(d.wer) ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>
+        <div class="frow frow-wide" id="w-wer-frei" ${d.wer === 'Andere' ? '' : 'hidden'}><div class="flabel"><label>Wer genau</label></div><input type="text" data-path="wer_frei" data-kind="text" value="${esc(d.wer_frei || '')}" placeholder="Werkstatt oder Person"></div>
         <div class="frow"><div class="flabel"><label>Kosten</label></div>${stepper('kosten_eur', d.kosten_eur, { u: '€', btn: 5, min: 0 }, '')}</div>
       </div>
     </section>
@@ -656,7 +659,7 @@ document.addEventListener('change', async ev => {
     const d = leseWartungForm();
     const a = AUFGABE_MAP.get(d.aufgabe);
     if (a && !ui.wedit.neu) { ui.wedit.data = d; zeichneWartungEditor(); return; }
-    ui.wedit.data = { ...d, wer: a ? (a.werkstatt ? "Michel's Bike Shop" : 'Gregor') : d.wer };
+    ui.wedit.data = { ...d, wer: a ? werStandard(a) : d.wer };
     zeichneWartungEditor();
     return;
   }
